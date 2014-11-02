@@ -18,6 +18,8 @@ var linkToGrab = "http://developer.android.com/assets/images/home/ics-android.pn
 var locationToPlace = "file://sdcard/ics-android.png";
 var foundDir = false;
 var downloadQueue = [];
+var my_media = null;
+var mediaTimer = null;
 
 function init(){
 	document.addEventListener("deviceready", onDeviceReady, false);
@@ -26,22 +28,30 @@ function init(){
 function onDeviceReady() {
     // Now safe to use device APIs
 	console.log("Device Ready!!");
-	// Event listeners
-	document.querySelector("#btn2").addEventListener("touchstart", showHomePage);
+	
+	//////////////////////// Event listeners /////////////////////////////
+	document.querySelector("#backBTN").addEventListener("touchstart", showHomePage);
+	document.querySelector("#play").addEventListener("touchend", playClicked);
+	document.querySelector("#pause").addEventListener("touchend", pauseClicked);
 	document.addEventListener("offline", onOffline, false);
 	document.addEventListener("online", onOnline, false);
-    //loadXML();//Just to test the loadXML function
+   
+	
+	
     displayPodcasts();
     //var buttonToClick = document.querySelector("#downloadImage");
     //buttonToClick.addEventListener('click', downloadFileStart, false);
 	
 }
 //////////////////  Page Changes ////////////////////////
-function showPodcastPage(ev){
-	ev.preventDefault();
+function showPodcastPage(podNumber){
+
 	console.log('Go Podcast Page');
 	document.querySelector('#podPage').className = "Active content";
 	document.querySelector('#homePage').className = "notActive content";
+	
+	displayPodcastPage(podNumber);
+	
 }
 
 function showHomePage(ev){
@@ -49,10 +59,26 @@ function showHomePage(ev){
 	console.log('Go Home');
 	document.querySelector('#podPage').className = "notActive1 content";
 	document.querySelector('#homePage').className = "Active1 content";
+	document.querySelector('#podcastPageList').innerHTML = null;
 	
 }
 
 /////////////////// Page Setup ////////////////////
+function displayPodcastPage(podNumber){
+	
+	var retrievedObject = localStorage.getItem('podcastData');
+    var podcastObject = JSON.parse(retrievedObject);
+	
+	
+	for(var i = 0; i < podcastObject.podcasts[podNumber].episodes.length; i++){
+            console.log(podcastObject.podcasts[podNumber].episodes[i].title);
+			var podcastListItems = document.querySelector('#podcastPageList');
+			var Podcasts = 	"<li class='table-view-cell media'>                                                                                                                             	<a class='navigate-right' id='btn"+i+"' onClick=''><img class='media-object pull-left' src='http://placehold.it/64x64' alt='Placeholder image for Argo's poster'/>                                                                                                                            <div class='media-body'>"+podcastObject.podcasts[podNumber].episodes[i].title+"</div></a></li>"
+			podcastListItems.innerHTML += Podcasts;
+        }
+	
+}
+
 function displayPodcasts(){
 	console.log("display podcasts");
 	if (localStorage.getItem('podcastData')){
@@ -69,10 +95,11 @@ function displayPodcasts(){
             console.log(podcastObject.podcasts[i].title);
 			
 			var podcastListItems = document.querySelector('#podcastList');
-			var Podcasts = 	"<li class='table-view-cell media'>                                                                                                                             	<a class='navigate-right' id='btn"+i+"'><img class='media-object pull-left' src='http://placehold.it/64x64' alt='Placeholder image for Argo's poster'/>                                                                                                                            <div class='media-body'>"+podcastObject.podcasts[i].title+"<p>2 Episodes Available</p></div></a></li>"
+			var Podcasts = 	"<li class='table-view-cell media'>                                                                                                                             	<a class='navigate-right' id='btn"+i+"' onClick='showPodcastPage("+i+")'><img class='media-object pull-left' src='http://placehold.it/64x64' alt='Placeholder image for Argo's poster'/>                                                                                                                            <div class='media-body'>"+podcastObject.podcasts[i].title+"<p>2 Episodes Available</p></div></a></li>"
 		podcastListItems.innerHTML += Podcasts;
 		
-		document.querySelector("#btn"+i+"").addEventListener("touchstart", showPodcastPage);
+		//document.querySelector("#btn"+i+"").addEventListener("touchstart", showPodcastPage);
+		console.log("#btn"+i+" Event Listener Added");
         }
 		
 		
@@ -354,4 +381,89 @@ function savePodcastData(pod){
     console.log("set local storage successfully");
     
     displayPodcasts();
+}
+
+///////////////  Get Podcast Data Object /////////////////
+function getPod()
+{
+    
+    var retrievedObject;
+    var podcastList = null;
+    
+    if (localStorage.getItem('podcastData')){
+        retrievedObject = localStorage.getItem('podcastData');
+        console.log("retrieved object successfully");
+        podcastList = JSON.parse(retrievedObject);
+    }
+    
+    else{
+        console.log("no podcast data");
+    }
+    
+    return podcastList;
+}
+
+///////////////////////////// Media Player Events ////////////////////
+
+function playClicked(ev){
+	ev.preventDefault();
+	//change play button into pause button
+	document.querySelector("#play").className = "icon icon-play pull-left spacer invisable";
+	document.querySelector("#pause").className = "icon icon-pause spacer";	
+	//console.log('Play Podcast');
+	
+	// by default play the oldest podcast first
+	// get link to oldest podcast
+	// send link to this play function
+	var src = "link";
+	
+	playAudio(link);
+	
+}
+
+function pauseClicked(ev){
+	ev.preventDefault();
+	//change play button into pause button
+	document.querySelector("#pause").className = "icon icon-pause pull-left spacer invisable";
+	document.querySelector("#play").className = "icon icon-play pull-left spacer";	
+	console.log('Pause Podcast');
+
+}
+	
+
+function playAudio(src) {
+	console.log("Play Pod");
+	// Create Media object from src
+	my_media = new Media(src, onSuccess, onError);
+
+	// Play audio
+	my_media.play();
+
+	// Update my_media position every second
+	if (mediaTimer == null) {
+		mediaTimer = setInterval(function() {
+			// get my_media position
+			my_media.getCurrentPosition(
+				// success callback
+				function(position) {
+					if (position > -1) {
+						setAudioPosition((position) + " sec");
+					}
+				},
+				// error callback
+				function(e) {
+					console.log("Error getting pos=" + e);
+					setAudioPosition("Error: " + e);
+				}
+			);
+		}, 1000);
+	}
+}
+////////////////////////// Media Player Calls //////////////////////
+function onSuccess() {
+            console.log("playAudio():Audio Success");
+        }
+function onError(error) {
+	alert('code: '    + error.code    + '\n' +
+		  'message: ' + error.message + '\n');
 }
