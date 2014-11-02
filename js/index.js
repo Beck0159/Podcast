@@ -18,6 +18,8 @@ var linkToGrab = "http://developer.android.com/assets/images/home/ics-android.pn
 var locationToPlace = "file://sdcard/ics-android.png";
 var foundDir = false;
 var downloadQueue = [];
+var my_media = null;
+var mediaTimer = null;
 
 function init(){
 	document.addEventListener("deviceready", onDeviceReady, false);
@@ -26,11 +28,16 @@ function init(){
 function onDeviceReady() {
     // Now safe to use device APIs
 	console.log("Device Ready!!");
-	// Event listeners
+	
+	//////////////////////// Event listeners /////////////////////////////
 	document.querySelector("#backBTN").addEventListener("touchstart", showHomePage);
+	document.querySelector("#play").addEventListener("touchend", playClicked);
+	document.querySelector("#pause").addEventListener("touchend", pauseClicked);
 	document.addEventListener("offline", onOffline, false);
 	document.addEventListener("online", onOnline, false);
-    //loadXML();//Just to test the loadXML function
+   
+	
+	
     displayPodcasts();
     //var buttonToClick = document.querySelector("#downloadImage");
     //buttonToClick.addEventListener('click', downloadFileStart, false);
@@ -394,4 +401,69 @@ function getPod()
     }
     
     return podcastList;
+}
+
+///////////////////////////// Media Player Events ////////////////////
+
+function playClicked(ev){
+	ev.preventDefault();
+	//change play button into pause button
+	document.querySelector("#play").className = "icon icon-play pull-left spacer invisable";
+	document.querySelector("#pause").className = "icon icon-pause spacer";	
+	//console.log('Play Podcast');
+	
+	// by default play the oldest podcast first
+	// get link to oldest podcast
+	// send link to this play function
+	var src = "link";
+	
+	playAudio(link);
+	
+}
+
+function pauseClicked(ev){
+	ev.preventDefault();
+	//change play button into pause button
+	document.querySelector("#pause").className = "icon icon-pause pull-left spacer invisable";
+	document.querySelector("#play").className = "icon icon-play pull-left spacer";	
+	console.log('Pause Podcast');
+
+}
+	
+
+function playAudio(src) {
+	console.log("Play Pod");
+	// Create Media object from src
+	my_media = new Media(src, onSuccess, onError);
+
+	// Play audio
+	my_media.play();
+
+	// Update my_media position every second
+	if (mediaTimer == null) {
+		mediaTimer = setInterval(function() {
+			// get my_media position
+			my_media.getCurrentPosition(
+				// success callback
+				function(position) {
+					if (position > -1) {
+						setAudioPosition((position) + " sec");
+					}
+				},
+				// error callback
+				function(e) {
+					console.log("Error getting pos=" + e);
+					setAudioPosition("Error: " + e);
+				}
+			);
+		}, 1000);
+	}
+}
+////////////////////////// Media Player Calls //////////////////////
+function onSuccess() {
+            console.log("playAudio():Audio Success");
+        }
+function onError(error) {
+	alert('code: '    + error.code    + '\n' +
+		  'message: ' + error.message + '\n');
 }
