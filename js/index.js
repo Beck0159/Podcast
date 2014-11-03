@@ -21,6 +21,7 @@ var downloadQueue = [];
 var my_media = null;
 var mediaTimer = null;
 
+
 function init(){
 	document.addEventListener("deviceready", onDeviceReady, false);
 }
@@ -33,6 +34,8 @@ function onDeviceReady() {
 	document.querySelector("#backBTN").addEventListener("touchstart", showHomePage);
 	document.querySelector("#play").addEventListener("touchend", playClicked);
 	document.querySelector("#pause").addEventListener("touchend", pauseClicked);
+	document.querySelector("#rewind").addEventListener("touchend", rewindClicked);
+	document.querySelector("#fastForward").addEventListener("touchend", forwardClicked);
 	document.addEventListener("offline", onOffline, false);
 	document.addEventListener("online", onOnline, false);
    
@@ -76,6 +79,8 @@ function displayPodcastPage(podNumber){
 			var Podcasts = 	"<li class='table-view-cell media'>                                                                                                                             	<a class='navigate-right' id='btn"+i+"' onClick=''><img class='media-object pull-left' src='http://placehold.it/64x64' alt='Placeholder image for Argo's poster'/>                                                                                                                            <div class='media-body'>"+podcastObject.podcasts[podNumber].episodes[i].title+"</div></a></li>"
 			podcastListItems.innerHTML += Podcasts;
         }
+	
+	initializeMedia("file:///storage/sdcard/Thrilling%20Adventure%20Hour/episode2.mp3");
 	
 }
 
@@ -226,6 +231,7 @@ function downloadFile(linkToGrab, locationToPlace){
                 function gotFileEntry(fileEntry){
                     var fileTransfer = new FileTransfer();
                     fileEntry.remove();
+					
                     localPath = fileSystem.root.toURL() + locationToPlace;
                     fileTransfer.download(
                         linkToGrab,localPath,function(theFile){
@@ -317,7 +323,8 @@ function managePodcasts(pod){
     
     if (!checkIfExists(pod.title)){
         createDirectory(pod.title);
-        downloadFile(pod.episodes[0].link, (pod.title+"/episode1.mp3"));
+        //downloadFile(pod.episodes[0].link, (pod.title+"/episode1.mp3"));
+		downloadFile(pod.episodes[0].link, ("TAH/episode1.mp3"));
         downloadFile(pod.episodes[1].link, (pod.title+"/episode2.mp3"));
         savePodcastData(pod);
     }
@@ -404,7 +411,11 @@ function getPod()
 }
 
 ///////////////////////////// Media Player Events ////////////////////
-
+function initializeMedia(src){
+	
+	my_media = new Media(src, onSuccess, onError);
+	
+}
 function playClicked(ev){
 	ev.preventDefault();
 	//change play button into pause button
@@ -412,12 +423,9 @@ function playClicked(ev){
 	document.querySelector("#pause").className = "icon icon-pause spacer";	
 	//console.log('Play Podcast');
 	
-	// by default play the oldest podcast first
-	// get link to oldest podcast
-	// send link to this play function
-	var src = "link";
+	//get title of podcast this being played
 	
-	playAudio(link);
+	playAudio();
 	
 }
 
@@ -426,38 +434,122 @@ function pauseClicked(ev){
 	//change play button into pause button
 	document.querySelector("#pause").className = "icon icon-pause pull-left spacer invisable";
 	document.querySelector("#play").className = "icon icon-play pull-left spacer";	
-	console.log('Pause Podcast');
+	console.log('Pause Pressed');
+	
+	pauseAudio();
 
 }
-	
 
-function playAudio(src) {
+function rewindClicked(ev){
+	ev.preventDefault();
+	console.log('Rewind Pressed');
+	
+	// Update media position every second
+   
+        // get media position
+        my_media.getCurrentPosition(
+            // success callback
+            function(position) {
+                if (position > -1) {
+                    console.log((position) + " sec");
+					    var rewind = ((position*1000)-10000);
+						console.log(rewind);
+						my_media.seekTo(rewind);
+                }
+            },
+            // error callback
+            function(e) {
+                console.log("Error getting pos=" + e);
+            }
+        );
+  
+	
+}
+
+function forwardClicked(ev){
+	ev.preventDefault();
+	
+	// get media position
+        my_media.getCurrentPosition(
+            // success callback
+            function(position) {
+                if (position > -1) {
+                    console.log((position) + " sec");
+					    var rewind = ((position*1000)+30000);
+						console.log(rewind);
+						my_media.seekTo(rewind);
+                }
+            },
+            // error callback
+            function(e) {
+                console.log("Error getting pos=" + e);
+            }
+        );
+	
+	
+	
+}
+
+function playAudio() {
 	console.log("Play Pod");
 	// Create Media object from src
-	my_media = new Media(src, onSuccess, onError);
-
+	
 	// Play audio
 	my_media.play();
-
-	// Update my_media position every second
-	if (mediaTimer == null) {
+	
 		mediaTimer = setInterval(function() {
-			// get my_media position
-			my_media.getCurrentPosition(
-				// success callback
-				function(position) {
-					if (position > -1) {
-						setAudioPosition((position) + " sec");
+        // get media position
+        my_media.getCurrentPosition(
+            // success callback
+            function(position) {
+				
+					var dur = my_media.getDuration();
+					var durMil = dur * 1000;
+					console.log(durMil+" duration");
+				
+             		var positionMil = position * 1000;
+                    console.log((positionMil) + " Milisec");
+					
+					if(positionMil < durMil){
+					
+						console.log('Less then duration'+durMil);
 					}
-				},
-				// error callback
-				function(e) {
-					console.log("Error getting pos=" + e);
-					setAudioPosition("Error: " + e);
-				}
-			);
-		}, 1000);
+					else{
+						alert('Done Playing');	
+						//removeFile("Thrilling Adventure Hour",2);
+						clearInterval(mediaTimer);
+						removeFile();
+						//break;
+					}   
+            },
+            // error callback
+            function(e) {
+                console.log("Error getting pos=" + e);
+            }
+        );
+    }, 1000);
+	
+}
+
+// Pause audio
+function pauseAudio() {
+	if (my_media) {
+		 my_media.pause();
+		 clearInterval(mediaTimer);
 	}
+}
+
+function seekPositon(seconds) {
+      if (Player.media === null)
+         return;
+ 
+      Player.media.seekTo(seconds * 1000);
+      Player.updateSliderPosition(seconds);
+   }
+
+function removeFile(){
+	
+ console.log('Hello');	
 }
 ////////////////////////// Media Player Calls //////////////////////
 function onSuccess() {
